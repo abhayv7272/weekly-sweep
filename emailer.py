@@ -34,12 +34,17 @@ def send_report(subject: str, html_body: str, attachments: Sequence[Tuple[str, b
     attachments: sequence of (filename, raw_bytes, mime_subtype) e.g.
                  ("report.html", b"...", "html")
     """
-    user = user or os.environ.get("GMAIL_USER", "")
-    password = (password or os.environ.get("GMAIL_APP_PASSWORD", "")).replace(" ", "")
-    to = to or os.environ.get("REPORT_TO", "") or user
+    # Secret names: MY_EMAIL / MY_APP_PASSWORD are what this repo uses; the
+    # GMAIL_* names are accepted too so either convention works.
+    user = user or os.environ.get("MY_EMAIL") or os.environ.get("GMAIL_USER") or ""
+    password = (password
+                or os.environ.get("MY_APP_PASSWORD")
+                or os.environ.get("GMAIL_APP_PASSWORD")
+                or "").replace(" ", "")
+    # No separate recipient secret needed: default to sending it to yourself.
+    to = to or os.environ.get("REPORT_TO") or user
 
-    missing = [n for n, v in (("GMAIL_USER", user), ("GMAIL_APP_PASSWORD", password),
-                              ("REPORT_TO", to)) if not v]
+    missing = [n for n, v in (("MY_EMAIL", user), ("MY_APP_PASSWORD", password)) if not v]
     if missing:
         raise RuntimeError(
             "Missing secret(s): " + ", ".join(missing) +

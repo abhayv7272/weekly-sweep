@@ -39,13 +39,13 @@ detector is broken the job aborts instead of emailing you wrong numbers.
 
 ## Setup
 
-Three repository secrets (Settings → Secrets and variables → Actions):
+Two repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
 |---|---|
-| `GMAIL_USER` | the Gmail address that sends |
-| `GMAIL_APP_PASSWORD` | a Google [App Password](https://myaccount.google.com/apppasswords) (not your login password) |
-| `REPORT_TO` | where the report lands |
+| `MY_EMAIL` | the Gmail address that sends **and** receives |
+| `MY_APP_PASSWORD` | a Google [App Password](https://myaccount.google.com/apppasswords) (not your login password) |
+| `REPORT_TO` | *optional* — only if the report should go to a different address |
 
 ## Running it by hand
 
