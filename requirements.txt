@@ -1,0 +1,10 @@
+pandas
+numpy
+requests
+tqdm
+plotly
+matplotlib
+openpyxl
+pytest
+curl_cffi
+yfinance
