@@ -1,0 +1,76 @@
+name: Diagnose (real network fetch test)
+
+# A read-only smoke test that proves the things the sandbox cannot:
+#   * NSE's symbol list is reachable and parses
+#   * Yahoo actually returns bars for real NSE tickers
+#   * the whole pipeline runs end to end on real data
+#   * SMTP login works
+# It never emails a report unless you ask it to.
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "How many real NSE symbols to fetch"
+        required: false
+        default: "25"
+      test_smtp:
+        description: "Also verify the Gmail login (no report sent)"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -q -U pip
+          pip install -q -r requirements.txt
+
+      - name: Engine self-test (49 checks)
+        run: python -m pytest wlsweep/tests_fixtures.py -q
+
+      - name: Engine matches the notebook byte-for-byte
+        run: |
+          python extract_engine.py
+          if ! git diff --quiet -- wlsweep/; then
+            echo "::error::wlsweep/ has drifted from the notebook"
+            git diff --stat -- wlsweep/
+            exit 1
+          fi
+          echo "wlsweep/ is identical to the notebook's embedded source"
+
+      - name: Network + real-data diagnosis
+        env:
+          MPLBACKEND: Agg
+          PYTHONUNBUFFERED: "1"
+        run: python diagnose.py --symbols ${{ inputs.symbols }}
+
+      - name: SMTP login check
+        if: ${{ inputs.test_smtp }}
+        env:
+          MY_EMAIL: ${{ secrets.MY_EMAIL }}
+          MY_APP_PASSWORD: ${{ secrets.MY_APP_PASSWORD }}
+        run: python diagnose.py --smtp-only
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnosis
+          path: |
+            out/*
+            diagnosis.txt
+          retention-days: 14
+          if-no-files-found: warn

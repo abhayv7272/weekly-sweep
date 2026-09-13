@@ -1,0 +1,93 @@
+name: Weekly Sweep Report
+
+on:
+  schedule:
+    # 14:00 UTC = 19:30 IST (IST = UTC+5:30). Saturday.
+    # GitHub cron is ALWAYS UTC and has no DST, and India has no DST either,
+    # so this stays at 19:30 IST all year round.
+    - cron: "0 14 * * 6"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Screen only the first N symbols (0 = full universe). Use 40 for a quick test."
+        required: false
+        default: "0"
+      send_email:
+        description: "Send the email?"
+        type: boolean
+        required: false
+        default: true
+
+concurrency:
+  group: weekly-sweep
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -q -U pip
+          pip install -q -r requirements.txt
+
+      # The cache is what turns a 7-minute download into a 5-second re-screen.
+      # restore-keys lets a new run start from last week's cache and only
+      # top up the missing bars.
+      - name: Restore market-data cache
+        uses: actions/cache/restore@v4
+        with:
+          path: cache_nse
+          key: nse-cache-${{ github.run_id }}
+          restore-keys: |
+            nse-cache-
+
+      - name: Run screener and email the report
+        env:
+          MY_EMAIL: ${{ secrets.MY_EMAIL }}
+          MY_APP_PASSWORD: ${{ secrets.MY_APP_PASSWORD }}
+          # optional: only set this if you want the report to go somewhere else
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+          MPLBACKEND: Agg
+          PYTHONUNBUFFERED: "1"
+        run: |
+          ARGS=""
+          if [ "${{ inputs.limit }}" != "" ] && [ "${{ inputs.limit }}" != "0" ]; then
+            ARGS="$ARGS --limit ${{ inputs.limit }}"
+          fi
+          if [ "${{ inputs.send_email }}" = "false" ]; then
+            ARGS="$ARGS --no-email"
+          fi
+          echo "run_sweep.py $ARGS"
+          python run_sweep.py $ARGS
+
+      - name: Save market-data cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: cache_nse
+          key: nse-cache-${{ github.run_id }}
+
+      - name: Upload report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-sweep-report
+          path: |
+            out/*.html
+            out/*.csv
+            out/*.xlsx
+            out/*.json
+          retention-days: 60
+          if-no-files-found: warn
