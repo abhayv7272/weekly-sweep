@@ -1,0 +1,32 @@
+name: Fetch Colab notebook
+on:
+  workflow_dispatch:
+    inputs:
+      file_id:
+        description: Google Drive file id
+        required: true
+        default: 1lJ33iNEOCPqqQX7byNNQKFZj4GvG6lDX
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: arena/01a09cc1-weekly-sweep
+      - name: Download notebook from Drive
+        run: |
+          set -e
+          mkdir -p notebook
+          ID="${{ inputs.file_id }}"
+          curl -sL "https://drive.usercontent.google.com/download?id=$ID&export=download&confirm=t" -o notebook/weekly_sweep.ipynb
+          head -c 120 notebook/weekly_sweep.ipynb; echo
+          python -c "import json;d=json.load(open('notebook/weekly_sweep.ipynb'));print('cells:',len(d['cells']))"
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add notebook/weekly_sweep.ipynb
+          git diff --cached --quiet || git commit -m "Fetch Colab notebook from Drive"
+          git push origin arena/01a09cc1-weekly-sweep
