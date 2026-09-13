@@ -3,3 +3,5 @@ out/
 cache_nse/
 __pycache__/
 *.pyc
+diagnosis.txt
+.pytest_cache/
