@@ -55,6 +55,7 @@ jobs:
 
       - name: Run screener and email the report
         env:
+          TZ: Asia/Kolkata
           MY_EMAIL: ${{ secrets.MY_EMAIL }}
           MY_APP_PASSWORD: ${{ secrets.MY_APP_PASSWORD }}
           # optional: only set this if you want the report to go somewhere else

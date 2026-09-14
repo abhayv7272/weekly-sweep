@@ -157,7 +157,7 @@ def main() -> int:
         say("")
         say(f"      sample {s0}: {len(d0)} daily bars, "
             f"{d0.index.min().date()} → {d0.index.max().date()}")
-        stale = (pd.Timestamp.utcnow().tz_localize(None) - d0.index.max()).days
+        stale = (pd.Timestamp(SC.now_ist().date()) - d0.index.max()).days
         say(f"      last bar is {stale} day(s) old "
             f"{'(fine)' if stale <= 7 else '(STALE — check the feed)'}")
         bad = int(((d0["High"] < d0[["Open", "Close"]].max(axis=1)) |

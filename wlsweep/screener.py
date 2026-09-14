@@ -207,7 +207,7 @@ class Screener:
         if subset is None:
             if self.ranking is None:
                 self.rank_universe()
-            syms = list(self.ranking["Symbol"])
+            syms = list(self.ranking["Symbol"]) if (self.ranking is not None and "Symbol" in self.ranking.columns) else []
             self._log(f"· Screening {len(syms)} symbols for completed weekly sweeps "
                       f"(swing_strength={self.p.swing_strength}, lookback={self.p.swing_lookback}w, "
                       f"wick≥{self.p.min_wick_ratio:.0%}, close in upper "
