@@ -15,9 +15,12 @@ from __future__ import annotations
 import os
 import smtplib
 import ssl
+from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
-from email.utils import formataddr, formatdate
+from email.utils import formataddr, format_datetime
 from typing import Dict, List, Optional, Sequence, Tuple
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
@@ -54,7 +57,7 @@ def send_report(subject: str, html_body: str, attachments: Sequence[Tuple[str, b
     msg["Subject"] = subject
     msg["From"] = formataddr((sender_name, user))
     msg["To"] = to
-    msg["Date"] = formatdate(localtime=True)
+    msg["Date"] = format_datetime(datetime.now(IST))
 
     inline = html_body
     if len(inline.encode("utf-8")) > INLINE_LIMIT:

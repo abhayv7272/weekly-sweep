@@ -54,6 +54,7 @@ jobs:
 
       - name: Network + real-data diagnosis
         env:
+          TZ: Asia/Kolkata
           MPLBACKEND: Agg
           PYTHONUNBUFFERED: "1"
         run: python diagnose.py --symbols ${{ inputs.symbols }}
