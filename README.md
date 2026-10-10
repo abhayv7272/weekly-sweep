@@ -1,7 +1,7 @@
 # weekly-sweep
 
 Automated **NSE Weekly Liquidity-Sweep Screener** — runs the Colab notebook's
-engine on GitHub Actions every **Saturday 19:30 IST** and emails a
+engine on GitHub Actions every **Friday 19:47 IST** (with backups at 21:47 and 23:47 IST in case GitHub starts a run late) and emails a
 visually-complete HTML report (tables + every sweep chart) to `REPORT_TO`.
 
 ## What it screens
@@ -24,7 +24,7 @@ The live week is always excluded, so nothing repaints.
 | `run_sweep.py` | headless runner — same pipeline, same order as the notebook |
 | `report.py` | builds the standalone HTML report (charts embedded as base64) |
 | `emailer.py` | Gmail SMTP delivery |
-| `.github/workflows/weekly-sweep.yml` | the Saturday schedule |
+| `.github/workflows/weekly-sweep.yml` | the Friday schedule |
 
 ### Why the result matches Colab
 
@@ -74,7 +74,7 @@ Edit `config.py`. Useful knobs:
 ## Cost & runtime
 
 First run downloads ~2 300 symbols (≈6–8 min). The cache is stored between runs
-via `actions/cache`, so later Saturdays only top up the new bars.
+via `actions/cache`, so later Fridays only top up the new bars.
 
 ---
 

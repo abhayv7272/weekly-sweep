@@ -4,17 +4,18 @@ on:
   schedule:
     # GitHub cron is ALWAYS UTC and has no DST, and India has no DST either.
     # Scheduled runs are often started late (hours) under GitHub load, and
-    # sometimes skipped. So we schedule the report at three times on Saturday:
-    #   14:17 UTC = 19:47 IST  (primary)
-    #   16:17 UTC = 21:47 IST  (backup)
-    #   18:17 UTC = 23:47 IST  (backup)
+    # sometimes skipped. So we schedule the report at three times on FRIDAY
+    # (after the 15:30 IST market close, so the week's candle is complete):
+    #   14:17 UTC Fri = 19:47 IST  (primary)
+    #   16:17 UTC Fri = 21:47 IST  (backup)
+    #   18:17 UTC Fri = 23:47 IST  (backup)
     # The "Skip if already sent" step makes sure only the FIRST successful run
     # of the week emails; the later backups see it and exit without sending.
     # Minutes are deliberately not :00 — the top of the hour is the most
     # congested time for GitHub's scheduler.
-    - cron: "17 14 * * 6"
-    - cron: "17 16 * * 6"
-    - cron: "17 18 * * 6"
+    - cron: "17 14 * * 5"
+    - cron: "17 16 * * 5"
+    - cron: "17 18 * * 5"
   workflow_dispatch:
     inputs:
       limit:
