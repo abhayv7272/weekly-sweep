@@ -2,10 +2,20 @@ name: Weekly Sweep Report
 
 on:
   schedule:
-    # 14:00 UTC = 19:30 IST (IST = UTC+5:30). Saturday.
-    # GitHub cron is ALWAYS UTC and has no DST, and India has no DST either,
-    # so this stays at 19:30 IST all year round.
-    - cron: "0 14 * * 6"
+    # GitHub cron is ALWAYS UTC and has no DST, and India has no DST either.
+    # Scheduled runs are often started late (hours) under GitHub load, and
+    # sometimes skipped. So we schedule the report at three times on FRIDAY
+    # (after the 15:30 IST market close, so the week's candle is complete):
+    #   14:17 UTC Fri = 19:47 IST  (primary)
+    #   16:17 UTC Fri = 21:47 IST  (backup)
+    #   18:17 UTC Fri = 23:47 IST  (backup)
+    # The "Skip if already sent" step makes sure only the FIRST successful run
+    # of the week emails; the later backups see it and exit without sending.
+    # Minutes are deliberately not :00 — the top of the hour is the most
+    # congested time for GitHub's scheduler.
+    - cron: "17 14 * * 5"
+    - cron: "17 16 * * 5"
+    - cron: "17 18 * * 5"
   workflow_dispatch:
     inputs:
       limit:
@@ -24,6 +34,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read   # needed by the "Skip if already sent" step to list runs
 
 jobs:
   sweep:
@@ -33,11 +44,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Scheduled backups must not send a second email. A scheduled run is
+      # skipped if a run of this workflow already SUCCEEDED in the last 12 hours
+      # (e.g. the 19:47 IST run, or a manual run earlier the same day).
+      # Manual runs (workflow_dispatch) always go ahead.
+      - name: Skip if already sent
+        id: dedupe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          CURRENT_RUN: ${{ github.run_id }}
+        run: |
+          if [ "$EVENT" != "schedule" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Manual run: always sends."
+            exit 0
+          fi
+          since=$(date -u -d '-12 hours' +%Y-%m-%dT%H:%M:%SZ)
+          count=$(gh run list --workflow weekly-sweep.yml --limit 30 \
+                    --json databaseId,createdAt,conclusion \
+                    --jq "[.[] | select(.conclusion == \"success\") | select(.databaseId != ($CURRENT_RUN | tonumber)) | select(.createdAt >= \"$since\")] | length")
+          echo "Successful runs since $since (excluding this one): $count"
+          if [ "$count" -gt 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "A report already went out in the last 12 hours — skipping this run."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.dedupe.outputs.skip != 'true'
         with:
           python-version: "3.11"
 
       - name: Install dependencies
+        if: steps.dedupe.outputs.skip != 'true'
         run: |
           python -m pip install -q -U pip
           pip install -q -r requirements.txt
@@ -46,6 +88,7 @@ jobs:
       # restore-keys lets a new run start from last week's cache and only
       # top up the missing bars.
       - name: Restore market-data cache
+        if: steps.dedupe.outputs.skip != 'true'
         uses: actions/cache/restore@v4
         with:
           path: cache_nse
@@ -54,6 +97,7 @@ jobs:
             nse-cache-
 
       - name: Run screener and email the report
+        if: steps.dedupe.outputs.skip != 'true'
         env:
           TZ: Asia/Kolkata
           MY_EMAIL: ${{ secrets.MY_EMAIL }}
@@ -74,14 +118,14 @@ jobs:
           python run_sweep.py $ARGS
 
       - name: Save market-data cache
-        if: always()
+        if: always() && steps.dedupe.outputs.skip != 'true'
         uses: actions/cache/save@v4
         with:
           path: cache_nse
           key: nse-cache-${{ github.run_id }}
 
       - name: Upload report artifacts
-        if: always()
+        if: always() && steps.dedupe.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: weekly-sweep-report
